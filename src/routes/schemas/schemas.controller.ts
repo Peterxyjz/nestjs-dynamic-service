@@ -1,4 +1,4 @@
-// src/schemas/schemas.controller.ts
+// src/routes/schemas/schemas.controller.ts
 import { CreateSchemaDto, UpdateSchemaDto } from '@/routes/schemas/dto/schema.dto'
 import {
   Body,
@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UsePipes,
   ValidationPipe
 } from '@nestjs/common'
@@ -48,6 +49,11 @@ export class SchemasController {
     return this.schemasService.findOne(id)
   }
 
+  @Get('by-name/:name')
+  findByName(@Param('name') name: string) {
+    return this.schemasService.findByName(name)
+  }
+
   @Put(':id')
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   update(@Param('id') id: string, @Body() updateSchemaDto: UpdateSchemaDto) {
@@ -63,9 +69,12 @@ export class SchemasController {
   @Post(':schemaName/data')
   createData(
     @Param('schemaName') schemaName: string,
-    @Body() data: Record<string, any>
+    @Body() data: Record<string, any>,
+    @Query('skipValidation') skipValidation?: string
   ) {
-    return this.dynamicDataService.insert(schemaName, data)
+    return this.dynamicDataService.insert(schemaName, data, {
+      skipValidation: skipValidation === 'true'
+    })
   }
 
   @Get(':schemaName/data')
@@ -82,13 +91,32 @@ export class SchemasController {
   updateData(
     @Param('schemaName') schemaName: string,
     @Param('id') id: string,
-    @Body() data: Record<string, any>
+    @Body() data: Record<string, any>,
+    @Query('skipValidation') skipValidation?: string
   ) {
-    return this.dynamicDataService.update(schemaName, id, data)
+    return this.dynamicDataService.update(schemaName, id, data, {
+      skipValidation: skipValidation === 'true'
+    })
   }
 
   @Delete(':schemaName/data/:id')
   removeData(@Param('schemaName') schemaName: string, @Param('id') id: string) {
     return this.dynamicDataService.remove(schemaName, id)
+  }
+
+  // Test validation for schema data without inserting
+  @Post(':schemaName/validate')
+  validateData(
+    @Param('schemaName') schemaName: string,
+    @Body() data: Record<string, any>
+  ) {
+    // This will throw an error if validation fails
+    return this.dynamicDataService
+      .validateSchemaData(schemaName, data, false)
+      .then((validatedData) => ({
+        valid: true,
+        message: 'Data is valid against all active validations for this schema',
+        data: validatedData
+      }))
   }
 }
